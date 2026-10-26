@@ -1,20 +1,14 @@
 # Jetson local VLM demo
 
-This repository contains the Docker Compose setup for Gemma 4 E2B on Jetson Orin and tracks the Live VLM WebUI source as a Git submodule. Model weights and runtime caches are kept locally under `cache/` and excluded from Git because they can be many gigabytes.
+This repository contains the Docker Compose setup for Gemma 4 E2B on Jetson Orin and includes the Live VLM WebUI source in `live-vlm-webui/`. The WebUI source is from [NVIDIA AI-IOT/live-vlm-webui](https://github.com/NVIDIA-AI-IOT/live-vlm-webui) and retains its Apache 2.0 license and notices. Model weights and runtime caches are kept locally under `cache/` and excluded from Git because they can be many gigabytes.
 
 ## Get the source
 
-Clone this repository with its WebUI source:
+Clone this repository:
 
 ```bash
-git clone --recurse-submodules https://github.com/vivek97vivu/vlm_jetson-gemma4.git
+git clone https://github.com/vivek97vivu/vlm_jetson-gemma4.git
 cd vlm_jetson-gemma4
-```
-
-If you already cloned without submodules, initialize it with:
-
-```bash
-git submodule update --init --recursive
 ```
 
 ## Open the demo
