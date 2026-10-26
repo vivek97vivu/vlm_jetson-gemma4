@@ -1,39 +1,20 @@
 # Gemma 4 Vision Lab on Jetson Orin
 
-**A local camera-to-caption stack.** Your browser streams the camera, Live VLM WebUI prepares frames, and vLLM runs **Gemma 4 E2B Instruct** on the Jetson GPU.
+**A local camera-to-caption demo:** the browser captures a live camera stream, Live VLM WebUI prepares frames, and vLLM runs Gemma 4 E2B Instruct on the Jetson.
 
-<p align="center">
-  <strong>CAMERA → LIVE VLM WEBUI → GEMMA 4 E2B</strong><br>
-  Local browser · OpenAI-compatible API · Docker Compose
-</p>
+This repository combines the Jetson deployment with the complete Live VLM WebUI source and documentation. Follow the **Jetson deployment** sections first to run this project. The full upstream WebUI guide follows for general installation options, backend setup, interface details, development, and reference material.
 
-> **This repository's ready-to-run profile is for Jetson Orin.** It uses Gemma 4 E2B Instruct, BF16, vLLM, and the included Live VLM WebUI source. The complete upstream WebUI guide follows below, including its other installation methods, supported backends, feature details, documentation links, and troubleshooting.
+## Project at a glance
 
-## Launch this Gemma 4 setup
-
-On the Jetson itself:
-
-```bash
-git clone https://github.com/vivek97vivu/vlm_jetson-gemma4.git
-cd vlm_jetson-gemma4
-docker compose up -d
-```
-
-The first model startup downloads weights if needed and warms up the inference engine. Watch progress with:
-
-```bash
-docker compose logs -f gemma4-e2b
-```
-
-When ready, the model API lists the served model:
-
-```bash
-curl http://localhost:8000/v1/models
-```
-
-Open **[http://localhost:8090](http://localhost:8090)** on the Jetson, allow camera access, choose the webcam, and start analysis. If the model selector remembers an earlier model, refresh the list and select **`google/gemma-4-E2B-it`**.
-
-## What is running
+| Component | Configuration |
+|---|---|
+| Target hardware | NVIDIA Jetson Orin |
+| Vision language model | `google/gemma-4-E2B-it` |
+| Inference server | vLLM, OpenAI-compatible API |
+| Browser interface | Live VLM WebUI |
+| UI address | `http://localhost:8090` |
+| Model API | `http://localhost:8000/v1` |
+| Data policy | Model/runtime caches stay local and are ignored by Git |
 
 ```mermaid
 flowchart LR
@@ -43,39 +24,81 @@ flowchart LR
     M -->|description| W
 ```
 
-Both services use host networking and bind to loopback. Open the UI on the Jetson desktop; `localhost` means the machine running the browser.
+## Deploy the Jetson stack
+
+Run on the Jetson desktop. Docker and the NVIDIA container runtime must be installed. The first model startup may take several minutes while it downloads weights and warms up.
+
+```bash
+git clone https://github.com/vivek97vivu/vlm_jetson-gemma4.git
+cd vlm_jetson-gemma4
+docker compose up -d
+```
+
+Follow model startup:
+
+```bash
+docker compose logs -f gemma4-e2b
+```
+
+When the model API is ready, this command returns the served model ID:
+
+```bash
+curl http://localhost:8000/v1/models
+```
+
+Open **[http://localhost:8090](http://localhost:8090)** in a browser on the Jetson. Allow camera access, select the webcam, and start analysis. If the WebUI has remembered an older model, refresh its model list and select **`google/gemma-4-E2B-it`**.
+
+## Runtime configuration
+
+These defaults are defined in [`compose.yaml`](compose.yaml):
 
 | Setting | Value |
 |---|---:|
-| Model | `google/gemma-4-E2B-it` |
-| Precision | BF16 |
+| Model precision | BF16 |
 | Context length | 8,192 tokens |
 | Concurrent sequences | 1 |
 | GPU memory utilization target | 40% |
 | Maximum generated tokens | 96 |
 | Frame processing interval | Every 120 frames |
-| UI / API | `localhost:8090` / `localhost:8000/v1` |
 
-These settings are in [`compose.yaml`](compose.yaml). Model weights and runtime caches live in `cache/`, which is excluded from Git because it can grow to many gigabytes. The included WebUI source and its Apache 2.0 license are in [`live-vlm-webui/`](live-vlm-webui/).
+The GPU utilization target leaves resources for the Jetson desktop. Adjust it only if the device has enough available memory for other running applications.
 
-## Container controls
+## Operate the services
 
 ```bash
 docker compose ps                 # show service state
 docker compose logs -f            # follow both service logs
 docker compose restart            # restart services
-docker compose down               # stop services; preserve model/cache files
+docker compose down               # stop services and keep downloaded caches
 ```
 
-## Gemma connection error
+Model weights and runtime/compile caches are stored under `cache/`. This directory is excluded from Git because it can grow to many gigabytes. Docker image layers remain in Docker's configured image store.
 
-The web page can become available before vLLM finishes loading Gemma. Check the model endpoint with `curl http://localhost:8000/v1/models`. Wait for startup in `docker compose logs -f gemma4-e2b`, then refresh the page and choose `google/gemma-4-E2B-it` in the model selector. If a container exited, run `docker compose ps` and inspect `docker compose logs`.
+## Troubleshoot this deployment
+
+**The page says “Connection error.”** The UI may start before Gemma is ready. Check `curl http://localhost:8000/v1/models`, then follow `docker compose logs -f gemma4-e2b` until the model server finishes starting. Refresh the page and choose `google/gemma-4-E2B-it` in the model selector.
+
+**The page does not open.** Check `docker compose ps`; if either service exited, inspect `docker compose logs` and start the stack again with `docker compose up -d`.
+
+**The browser cannot see the camera.** Open the page on the Jetson itself and grant camera permission to the browser.
+
+## Repository contents
+
+```text
+.
+├── compose.yaml          # Jetson Gemma 4 and WebUI services
+├── live-vlm-webui/       # Included WebUI source, docs, and license
+├── cache/                # Local model/runtime data; ignored by Git
+└── README.md
+```
+
+The included WebUI source comes from [NVIDIA AI-IOT/live-vlm-webui](https://github.com/NVIDIA-AI-IOT/live-vlm-webui). Its Apache 2.0 license and notices are preserved in [`live-vlm-webui/LICENSE`](live-vlm-webui/LICENSE).
 
 ---
 
-# Live VLM WebUI — Complete Guide
+# Complete Live VLM WebUI Guide
 
-The following guide preserves the full Live VLM WebUI information you supplied. Its local links and images point into `live-vlm-webui/` so they work from this repository's root.
+The following sections retain the full guide supplied for Live VLM WebUI. They cover general standalone installs and backends; for this repository's Jetson stack, use the deployment instructions above.
 
 ## Live VLM WebUI
 
@@ -114,7 +137,45 @@ Stream your webcam to any VLM and get live AI-powered analysis - perfect for tes
 [![Reddit](https://img.shields.io/badge/Share%20on-Reddit-FF4500?logo=reddit&logoColor=white)](https://reddit.com/submit?url=https://github.com/nvidia-ai-iot/live-vlm-webui&title=Live%20VLM%20WebUI%20-%20Real-time%20Vision%20AI%20Interaction)
 
 ---
+## ✨ Key Features
 
+### Core Functionality
+- 🎥 **Multi-source video input**
+  - WebRTC webcam streaming (stable)
+  - 🧪 RTSP IP camera support (Beta - tested with Reolink RLC-811A)
+- 🔌 **OpenAI-compatible API** - Works with vLLM, SGLang, Ollama, TGI, or any vision API
+- 📝 **Interactive prompt editor** - 10+ preset prompts + custom prompts
+- ⚡ **Async processing** - Smooth video while VLM processes frames in background
+- 🔧 **Flexible deployment** - Local inference or cloud APIs
+
+### UI & Visualization
+- 🎨 **Modern NVIDIA-themed UI** - Professional design with NVIDIA green accents
+- 🌓 **Light/Dark theme toggle** - Automatic preference persistence
+- 📊 **Live system monitoring** - Real-time GPU, VRAM, CPU, RAM stats with sparkline charts
+- ⏱️ **Inference metrics** - Live latency tracking (last, average, total count)
+- 🪞 **Video mirroring** - Toggle button overlay on camera view
+- 📱 **Compact layout** - Single-screen design
+
+### Platform Support
+- 💻 **Cross-platform monitoring** - Auto-detects NVIDIA GPUs (NVML), Apple Silicon
+- 🖥️ **Dynamic system detection** - CPU model name and hostname
+- 🔒 **HTTPS support** - Self-signed certificates for secure webcam access
+- 🌐 **Universal compatibility** - PC (x86_64), DGX Spark (ARM64 SBSA), Jetson (Orin, Thor), Mac
+- 🏗️ **Multi-arch Docker images** - Single image works across x86_64 and ARM64 architectures
+
+---
+## 🗺️ Use Cases
+
+- 🔒 **Security** - Real-time monitoring and alert generation
+- 🤖 **Robotics** - Visual feedback for robot control
+- 🏭 **Industrial** - Quality control, safety monitoring, automation
+- 🏥 **Healthcare** - Activity monitoring, fall detection
+- ♿ **Accessibility** - Visual assistance for visually impaired users
+- 📚 **Education** - Interactive learning experiences
+- 🎬 **Content Creation** - Live scene analysis for video production
+- 🎮 **Gaming** - AI game master or interactive experiences
+
+---
 ## 🚀 Quick Start (Easiest Way!)
 
 **For PC, Mac, DGX, and Jetson systems:**
@@ -138,7 +199,6 @@ live-vlm-webui
 - ⚠️ **Jetson (Orin, Thor)** - pip works but Docker is simpler. See [Jetson Quick Start](#-jetson-quick-start) below
 
 ---
-
 ## ✈️ Jetson Quick Start
 
 > [!IMPORTANT]
@@ -267,176 +327,6 @@ live-vlm-webui
 **Note:** pip installation requires platform-specific setup steps. For production or simpler setup, use Docker (Option 1).
 
 ---
-
-## 🎥 WebUI Usage
-
-Once the server is running, access the web interface at **`https://localhost:8090`**
-
-### Accepting the SSL Certificate
-
-| 1️⃣ Click **"Advanced"** button | 2️⃣ Click **"Proceed to localhost (unsafe)"** | 3️⃣ Allow camera access when prompted |
-|:---:|:---:|:---:|
-| ![Chrome Advanced](./live-vlm-webui/docs/images/chrome_advanced.png) | ![Chrome Proceed](./live-vlm-webui/docs/images/chrome_proceed.png) | ![Chrome Webcam Access](./live-vlm-webui/docs/images/chrome_webcam_access.png) |
-
-### Interface Overview
-
-**Left Sidebar Controls:**
-
-<img src="./live-vlm-webui/docs/images/usage_left_pane.png" align="right" width="180px" style="margin-left: 50px; margin-bottom: 10px;">
-
-#### **🌐 VLM API Configuration**
-  - Set **API Base URL**, API Key, and **Model**
-    - 🔄 Refresh models button - Auto-detect available models
-    - ➕ Download button (coming soon)
-
-#### **📹 Camera Control**
-  - Dropdown menu lists all detected cameras
-  - Switch cameras on-the-fly without restarting
-  - **START/STOP** buttons for analysis control
-  - **Frame Interval**: Process every N frames (1-3600)
-    - Lower (5-30) = more frequent, higher GPU usage
-    - Higher (60-300) = less frequent, power saving
-
-#### **✍️ Prompt Editor**
-  - 10+ preset prompts (scene description, object detection, safety, OCR, etc.)
-  - Write custom prompts
-  - Adjust **Max Tokens** for response length (1-4096)
-
-<br clear="right">
-
-<img src="./live-vlm-webui/docs/images/usage_main_pane.png" align="right" width="240px" style="margin-left: 50px; margin-bottom: 10px;">
-
-**Main Content Area:**
-
-#### **🤖 VLM Output Info** - Real-time analysis results:
-  - Model name and inference latency metrics ⏱️
-  - Current prompt display (gray box)
-  - Generated text output
-
-#### **🖼️ Video Feed** - Live webcam
-  - mirror toggle button 🔄
-
-#### **📈 System Stats Card** - Live monitoring:
-  - System info: Hardware name with hostname with GPU info
-  - GPU utilization and VRAM with progress bars
-  - CPU and RAM stats
-  - Sparkline graphs
-
-<br clear="right">
-
-**Header:**
-
-![](./live-vlm-webui/docs/images/usage_header.png)
-
-- **Connection Status** - WebSocket connectivity indicator
-- **⚙️ Settings** - Advanced configuration modal (WebRTC, latency thresholds, debugging)
-- **🌙/☀️ Theme Toggle** - Switch between Light/Dark modes
-
----
-
-## 💻 Development Installation (From Source)
-
-**For developers, contributors, and those who want full control:**
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/nvidia-ai-iot/live-vlm-webui.git
-cd live-vlm-webui
-
-# 2. Create virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-
-# 3. Upgrade pip and install in editable mode
-pip install --upgrade pip setuptools wheel
-pip install -e .
-
-# 4. Start the server (SSL certs auto-generate)
-./scripts/start_server.sh
-```
-
-**Access the WebUI:** Open **`https://localhost:8090`**
-
-**Benefits of source installation:**
-- ✅ Make code changes that take effect immediately (editable install)
-- ✅ Access to development tools and scripts
-- ✅ Works on macOS (unlike Docker which doesn't support webcam)
-- ✅ Full debugging capabilities
-
-**Platforms tested:**
-- ✅ Linux (x86_64) - fully tested
-- ✅ DGX Spark (ARM64) - fully tested
-- ✅ Jetson Thor - fully tested
-- ✅ Jetson Orin - fully tested
-- ✅ macOS (Apple Silicon) - fully tested
-- ⚠️ Windows - WSL2 recommended, native Windows requires additional setup (FFmpeg, build tools)
-
-> [!TIP]
-> For Jetson, we recommend Docker for production use. Source installation works but requires:
-> `sudo apt install python3.10-venv` and careful pip management to avoid JetPack conflicts.
-
----
-
-## 🤖 Setting Up Your VLM Backend
-
-Choose the VLM backend that fits your needs:
-
-> 📖 **Looking for specific models?** See the complete [List of Vision-Language Models](./live-vlm-webui/docs/usage/list-of-vlms.md) across all providers.
-
-### Quick Comparison
-
-| Backend | Setup Difficulty | Model Coverage | GPU Required |
-|---------|------------------|----------------|--------------|
-| **Ollama** ✅    | 🟢 Easy   | 14+ vision models ([link](https://ollama.com/search?c=vision)) | 🏠 Yes (local) |
-| **vLLM** ⚠️      | 🔴 Varies (works best on PC) | Widest HF model support | 🏠 Yes (local) |
-| **NVIDIA NIM** ⚠️ | 🟡 Medium | Limited VLM selection (improving) | 🏠 Yes (local) |
-| **NVIDIA API Catalog** ✅ | 🟢 Easy | 12+ hosted VLMs     | ☁️ No (cloud) |
-| **OpenAI API** ⚠️        | 🟢 Easy | GPT-4o, GPT-4o-mini | ☁️ No (cloud) |
-
-> **Legend**: ✅ Tested | ⚠️ Has auto-detection but not fully validated
-
-### Option A: Ollama (Recommended for Beginners)
-
-```bash
-# Install from https://ollama.ai/download
-# Pull a vision model
-ollama pull llama3.2-vision:11b
-
-# Start server
-ollama serve
-```
-
-**Best for:** Quick start, easy model management
-
-### Option B: vLLM (Recommended for Performance)
-
-```bash
-# Install vLLM
-pip install vllm
-
-# Start server
-python -m vllm.entrypoints.openai.api_server \
-  --model meta-llama/Llama-3.2-11B-Vision-Instruct \
-  --port 8000
-```
-
-**Best for:** Production deployments, high throughput
-
-### Option C: NVIDIA API Catalog (No GPU Required)
-
-1. Visit [NVIDIA API Catalog](https://build.nvidia.com/)
-2. Get API key on [build.nvidia.com](https://build.nvidia.com/settings/api-keys) page.
-3. Configure in WebUI:
-   - API Base: `https://integrate.api.nvidia.com/v1`
-   - API Key: `nvapi-YOUR_KEY`
-   - Model: `meta/llama-3.2-90b-vision-instruct`
-
-**Best for:** Cloud-based inference, instant access, free API trial usage
-
-**📘 Detailed Guide:** [VLM Backend Setup](./live-vlm-webui/docs/setup/vlm-backends.md)
-
----
-
 ## 🔧 Alternative Installation Methods
 
 ### Docker (Recommended for Production & Jetson)
@@ -554,69 +444,130 @@ Includes:
 **📘 Detailed Guide:** [Docker Compose Setup Details](./live-vlm-webui/docs/setup/docker-compose-details.md)
 
 ---
+## 🤖 Setting Up Your VLM Backend
 
-## 📚 Documentation
+Choose the VLM backend that fits your needs:
 
-### For Users
-- 📖 [VLM Backend Setup](./live-vlm-webui/docs/setup/vlm-backends.md) - Detailed guide for Ollama, vLLM, SGLang, NVIDIA API
-- 🤖 [List of Vision-Language Models](./live-vlm-webui/docs/usage/list-of-vlms.md) - Comprehensive catalog of VLMs across Ollama, NVIDIA, OpenAI, Anthropic
-- 📹 [RTSP IP Camera Setup](./live-vlm-webui/docs/usage/rtsp-ip-cameras.md) - 🧪 Beta feature for continuous monitoring (tested: Reolink RLC-811A)
-- 🐋 [Docker Compose Details](./live-vlm-webui/docs/setup/docker-compose-details.md) - Complete stack setup with Ollama or NIM
-- 🛠️ [Docker Deployment Guide](./live-vlm-webui/docs/setup/docker.md) - Complete Docker setup and troubleshooting
-- ⚙️ [Advanced Configuration](./live-vlm-webui/docs/usage/advanced-configuration.md) - Performance tuning, custom prompts, API compatibility
+> 📖 **Looking for specific models?** See the complete [List of Vision-Language Models](./live-vlm-webui/docs/usage/list-of-vlms.md) across all providers.
 
-### For Developers
-- 🔨 [Building Docker Images](./live-vlm-webui/docs/development/building-images.md) - Build platform-specific images for GHCR
-- 🧑‍💻 [Contributing Guide](./live-vlm-webui/CONTRIBUTING.md) - How to contribute to the project
+### Quick Comparison
 
-### Help & Support
-- 🚑 [Troubleshooting Guide](./live-vlm-webui/docs/troubleshooting.md) - Common issues and solutions
-- 💬 [GitHub Issues](https://github.com/nvidia-ai-iot/live-vlm-webui/issues) - Bug reports and feature requests
-- 🌐 [NVIDIA Developer Forums](https://forums.developer.nvidia.com/) - Community support
+| Backend | Setup Difficulty | Model Coverage | GPU Required |
+|---------|------------------|----------------|--------------|
+| **Ollama** ✅    | 🟢 Easy   | 14+ vision models ([link](https://ollama.com/search?c=vision)) | 🏠 Yes (local) |
+| **vLLM** ⚠️      | 🔴 Varies (works best on PC) | Widest HF model support | 🏠 Yes (local) |
+| **NVIDIA NIM** ⚠️ | 🟡 Medium | Limited VLM selection (improving) | 🏠 Yes (local) |
+| **NVIDIA API Catalog** ✅ | 🟢 Easy | 12+ hosted VLMs     | ☁️ No (cloud) |
+| **OpenAI API** ⚠️        | 🟢 Easy | GPT-4o, GPT-4o-mini | ☁️ No (cloud) |
 
----
+> **Legend**: ✅ Tested | ⚠️ Has auto-detection but not fully validated
 
-## ✨ Key Features
+### Option A: Ollama (Recommended for Beginners)
 
-### Core Functionality
-- 🎥 **Multi-source video input**
-  - WebRTC webcam streaming (stable)
-  - 🧪 RTSP IP camera support (Beta - tested with Reolink RLC-811A)
-- 🔌 **OpenAI-compatible API** - Works with vLLM, SGLang, Ollama, TGI, or any vision API
-- 📝 **Interactive prompt editor** - 10+ preset prompts + custom prompts
-- ⚡ **Async processing** - Smooth video while VLM processes frames in background
-- 🔧 **Flexible deployment** - Local inference or cloud APIs
+```bash
+# Install from https://ollama.ai/download
+# Pull a vision model
+ollama pull llama3.2-vision:11b
 
-### UI & Visualization
-- 🎨 **Modern NVIDIA-themed UI** - Professional design with NVIDIA green accents
-- 🌓 **Light/Dark theme toggle** - Automatic preference persistence
-- 📊 **Live system monitoring** - Real-time GPU, VRAM, CPU, RAM stats with sparkline charts
-- ⏱️ **Inference metrics** - Live latency tracking (last, average, total count)
-- 🪞 **Video mirroring** - Toggle button overlay on camera view
-- 📱 **Compact layout** - Single-screen design
+# Start server
+ollama serve
+```
 
-### Platform Support
-- 💻 **Cross-platform monitoring** - Auto-detects NVIDIA GPUs (NVML), Apple Silicon
-- 🖥️ **Dynamic system detection** - CPU model name and hostname
-- 🔒 **HTTPS support** - Self-signed certificates for secure webcam access
-- 🌐 **Universal compatibility** - PC (x86_64), DGX Spark (ARM64 SBSA), Jetson (Orin, Thor), Mac
-- 🏗️ **Multi-arch Docker images** - Single image works across x86_64 and ARM64 architectures
+**Best for:** Quick start, easy model management
 
----
+### Option B: vLLM (Recommended for Performance)
 
-## 🗺️ Use Cases
+```bash
+# Install vLLM
+pip install vllm
 
-- 🔒 **Security** - Real-time monitoring and alert generation
-- 🤖 **Robotics** - Visual feedback for robot control
-- 🏭 **Industrial** - Quality control, safety monitoring, automation
-- 🏥 **Healthcare** - Activity monitoring, fall detection
-- ♿ **Accessibility** - Visual assistance for visually impaired users
-- 📚 **Education** - Interactive learning experiences
-- 🎬 **Content Creation** - Live scene analysis for video production
-- 🎮 **Gaming** - AI game master or interactive experiences
+# Start server
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.2-11B-Vision-Instruct \
+  --port 8000
+```
+
+**Best for:** Production deployments, high throughput
+
+### Option C: NVIDIA API Catalog (No GPU Required)
+
+1. Visit [NVIDIA API Catalog](https://build.nvidia.com/)
+2. Get API key on [build.nvidia.com](https://build.nvidia.com/settings/api-keys) page.
+3. Configure in WebUI:
+   - API Base: `https://integrate.api.nvidia.com/v1`
+   - API Key: `nvapi-YOUR_KEY`
+   - Model: `meta/llama-3.2-90b-vision-instruct`
+
+**Best for:** Cloud-based inference, instant access, free API trial usage
+
+**📘 Detailed Guide:** [VLM Backend Setup](./live-vlm-webui/docs/setup/vlm-backends.md)
 
 ---
+## 🎥 WebUI Usage
 
+Once the server is running, access the web interface at **`https://localhost:8090`**
+
+### Accepting the SSL Certificate
+
+| 1️⃣ Click **"Advanced"** button | 2️⃣ Click **"Proceed to localhost (unsafe)"** | 3️⃣ Allow camera access when prompted |
+|:---:|:---:|:---:|
+| ![Chrome Advanced](./live-vlm-webui/docs/images/chrome_advanced.png) | ![Chrome Proceed](./live-vlm-webui/docs/images/chrome_proceed.png) | ![Chrome Webcam Access](./live-vlm-webui/docs/images/chrome_webcam_access.png) |
+
+### Interface Overview
+
+**Left Sidebar Controls:**
+
+<img src="./live-vlm-webui/docs/images/usage_left_pane.png" align="right" width="180px" style="margin-left: 50px; margin-bottom: 10px;">
+
+#### **🌐 VLM API Configuration**
+  - Set **API Base URL**, API Key, and **Model**
+    - 🔄 Refresh models button - Auto-detect available models
+    - ➕ Download button (coming soon)
+
+#### **📹 Camera Control**
+  - Dropdown menu lists all detected cameras
+  - Switch cameras on-the-fly without restarting
+  - **START/STOP** buttons for analysis control
+  - **Frame Interval**: Process every N frames (1-3600)
+    - Lower (5-30) = more frequent, higher GPU usage
+    - Higher (60-300) = less frequent, power saving
+
+#### **✍️ Prompt Editor**
+  - 10+ preset prompts (scene description, object detection, safety, OCR, etc.)
+  - Write custom prompts
+  - Adjust **Max Tokens** for response length (1-4096)
+
+<br clear="right">
+
+<img src="./live-vlm-webui/docs/images/usage_main_pane.png" align="right" width="240px" style="margin-left: 50px; margin-bottom: 10px;">
+
+**Main Content Area:**
+
+#### **🤖 VLM Output Info** - Real-time analysis results:
+  - Model name and inference latency metrics ⏱️
+  - Current prompt display (gray box)
+  - Generated text output
+
+#### **🖼️ Video Feed** - Live webcam
+  - mirror toggle button 🔄
+
+#### **📈 System Stats Card** - Live monitoring:
+  - System info: Hardware name with hostname with GPU info
+  - GPU utilization and VRAM with progress bars
+  - CPU and RAM stats
+  - Sparkline graphs
+
+<br clear="right">
+
+**Header:**
+
+![](./live-vlm-webui/docs/images/usage_header.png)
+
+- **Connection Status** - WebSocket connectivity indicator
+- **⚙️ Settings** - Advanced configuration modal (WebRTC, latency thresholds, debugging)
+- **🌙/☀️ Theme Toggle** - Switch between Light/Dark modes
+
+---
 ## 🚑 Troubleshooting
 
 ### Quick Fixes
@@ -637,8 +588,68 @@ Includes:
 - Use smaller model (gemma3:4b instead of gemma3:11b)
 - Increase Frame Processing Interval (60+ frames)
 - Reduce Max Tokens (50-100 instead of 512)
+## 📚 Documentation
 
+### For Users
+- 📖 [VLM Backend Setup](./live-vlm-webui/docs/setup/vlm-backends.md) - Detailed guide for Ollama, vLLM, SGLang, NVIDIA API
+- 🤖 [List of Vision-Language Models](./live-vlm-webui/docs/usage/list-of-vlms.md) - Comprehensive catalog of VLMs across Ollama, NVIDIA, OpenAI, Anthropic
+- 📹 [RTSP IP Camera Setup](./live-vlm-webui/docs/usage/rtsp-ip-cameras.md) - 🧪 Beta feature for continuous monitoring (tested: Reolink RLC-811A)
+- 🐋 [Docker Compose Details](./live-vlm-webui/docs/setup/docker-compose-details.md) - Complete stack setup with Ollama or NIM
+- 🛠️ [Docker Deployment Guide](./live-vlm-webui/docs/setup/docker.md) - Complete Docker setup and troubleshooting
+- ⚙️ [Advanced Configuration](./live-vlm-webui/docs/usage/advanced-configuration.md) - Performance tuning, custom prompts, API compatibility
 
+### For Developers
+- 🔨 [Building Docker Images](./live-vlm-webui/docs/development/building-images.md) - Build platform-specific images for GHCR
+- 🧑‍💻 [Contributing Guide](./live-vlm-webui/CONTRIBUTING.md) - How to contribute to the project
+
+### Help & Support
+- 🚑 [Troubleshooting Guide](./live-vlm-webui/docs/troubleshooting.md) - Common issues and solutions
+- 💬 [GitHub Issues](https://github.com/nvidia-ai-iot/live-vlm-webui/issues) - Bug reports and feature requests
+- 🌐 [NVIDIA Developer Forums](https://forums.developer.nvidia.com/) - Community support
+
+---
+## 💻 Development Installation (From Source)
+
+**For developers, contributors, and those who want full control:**
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/nvidia-ai-iot/live-vlm-webui.git
+cd live-vlm-webui
+
+# 2. Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 3. Upgrade pip and install in editable mode
+pip install --upgrade pip setuptools wheel
+pip install -e .
+
+# 4. Start the server (SSL certs auto-generate)
+./scripts/start_server.sh
+```
+
+**Access the WebUI:** Open **`https://localhost:8090`**
+
+**Benefits of source installation:**
+- ✅ Make code changes that take effect immediately (editable install)
+- ✅ Access to development tools and scripts
+- ✅ Works on macOS (unlike Docker which doesn't support webcam)
+- ✅ Full debugging capabilities
+
+**Platforms tested:**
+- ✅ Linux (x86_64) - fully tested
+- ✅ DGX Spark (ARM64) - fully tested
+- ✅ Jetson Thor - fully tested
+- ✅ Jetson Orin - fully tested
+- ✅ macOS (Apple Silicon) - fully tested
+- ⚠️ Windows - WSL2 recommended, native Windows requires additional setup (FFmpeg, build tools)
+
+> [!TIP]
+> For Jetson, we recommend Docker for production use. Source installation works but requires:
+> `sudo apt install python3.10-venv` and careful pip management to avoid JetPack conflicts.
+
+---
 ## 🤝 Contributing
 
 We ❤️ contributions from the community! This project is built with passion and we'd love your help making it even better.
@@ -665,7 +676,6 @@ See [Contributing Guide](./live-vlm-webui/CONTRIBUTING.md) for details.
 > **⭐ Don't forget to star the repository if you found it helpful!** Your support means the world to us and helps demonstrate the value of this work to the community and our organization.
 
 ---
-
 ## 📦 Project Structure
 
 ```
@@ -722,7 +732,6 @@ live-vlm-webui/
 ```
 
 ---
-
 ## 📄 License
 
 This project is licensed under the **Apache License 2.0** - see the [LICENSE](live-vlm-webui/LICENSE) file for details.
@@ -733,7 +742,6 @@ SPDX-License-Identifier: Apache-2.0
 ```
 
 ---
-
 ## 🙏 Acknowledgments
 
 - Built with [aiortc](https://github.com/aiortc/aiortc) - Python WebRTC implementation
@@ -741,7 +749,6 @@ SPDX-License-Identifier: Apache-2.0
 - Inspired by the growing ecosystem of open-source vision language models, including [NanoVLM](https://dusty-nv.github.io/NanoLLM/)
 
 ---
-
 ## 📝 Citation
 
 If you use this in your research or project, please cite:
@@ -755,7 +762,6 @@ If you use this in your research or project, please cite:
 ```
 
 ---
-
 ## ⭐ Star History
 
 **Thank you to everyone who has starred this project!** Your support drives us to keep improving and innovating. 🚀
