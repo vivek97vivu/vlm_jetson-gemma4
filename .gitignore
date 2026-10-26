@@ -1,0 +1,22 @@
+# Model weights and runtime/compile caches (can be many gigabytes)
+/cache/
+
+# Local logs and runtime artifacts
+/logs/
+*.log
+
+# Python tooling artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Local environment files and editor/OS metadata
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db

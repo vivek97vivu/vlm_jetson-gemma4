@@ -1,0 +1,3 @@
+[submodule "live-vlm-webui"]
+	path = live-vlm-webui
+	url = https://github.com/nvidia-ai-iot/live-vlm-webui.git

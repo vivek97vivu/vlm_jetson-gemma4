@@ -1,0 +1,64 @@
+services:
+  gemma4-e2b:
+    image: ghcr.io/nvidia-ai-iot/vllm:gemma4-jetson-orin
+    container_name: gemma4-e2b
+    runtime: nvidia
+    network_mode: host
+    environment:
+      HF_HOME: /data/models/huggingface
+      HUGGINGFACE_HUB_CACHE: /data/models/huggingface
+      TRANSFORMERS_CACHE: /data/models/huggingface
+      TORCH_HOME: /data/models/torch
+      XDG_CACHE_HOME: /root/.cache
+      VLLM_CACHE_ROOT: /root/.cache/vllm
+      TRITON_CACHE_DIR: /root/.cache/triton
+      TORCHINDUCTOR_CACHE_DIR: /root/.cache/torch/inductor
+    volumes:
+      - ./cache:/data/models
+      - ./cache:/root/.cache
+    command:
+      - vllm
+      - serve
+      - google/gemma-4-E2B-it
+      - --host
+      - 127.0.0.1
+      - --port
+      - "8000"
+      - --max-model-len
+      - "8192"
+      - --max-num-seqs
+      - "1"
+      - --gpu-memory-utilization
+      - "0.40"
+
+  live-vlm-webui:
+    image: ghcr.io/nvidia-ai-iot/live-vlm-webui:latest-jetson-orin
+    container_name: live-vlm-webui
+    runtime: nvidia
+    network_mode: host
+    depends_on:
+      - gemma4-e2b
+    volumes:
+      - /run/jtop.sock:/run/jtop.sock:ro
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/', timeout=2)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    command:
+      - python
+      - -m
+      - live_vlm_webui.server
+      - --localhost-http
+      - --api-base
+      - http://localhost:8000/v1
+      - --model
+      - google/gemma-4-E2B-it
+      - --max-tokens
+      - "96"
+      - --process-every
+      - "120"

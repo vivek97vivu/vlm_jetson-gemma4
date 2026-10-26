@@ -1,6 +1,21 @@
 # Jetson local VLM demo
 
-This folder contains the Live VLM WebUI checkout, the Docker Compose setup, and the Hugging Face/runtime caches for Gemma 4 E2B.
+This repository contains the Docker Compose setup for Gemma 4 E2B on Jetson Orin and tracks the Live VLM WebUI source as a Git submodule. Model weights and runtime caches are kept locally under `cache/` and excluded from Git because they can be many gigabytes.
+
+## Get the source
+
+Clone this repository with its WebUI source:
+
+```bash
+git clone --recurse-submodules https://github.com/vivek97vivu/vlm_jetson-gemma4.git
+cd vlm_jetson-gemma4
+```
+
+If you already cloned without submodules, initialize it with:
+
+```bash
+git submodule update --init --recursive
+```
 
 ## Open the demo
 
@@ -9,7 +24,6 @@ On the Jetson desktop, open `http://localhost:8090`, allow camera access, select
 ## Manage the containers
 
 ```bash
-cd "/home/algosium/jetson vlm"
 docker compose ps
 docker compose logs -f gemma4-e2b
 docker compose down
